@@ -1,0 +1,112 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BarChart2, Mail, Lock } from 'lucide-react';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
+import { authService } from '../services/authService';
+import { useAuthStore } from '../store/authStore';
+import toast from 'react-hot-toast';
+
+interface FormState {
+  email: string;
+  password: string;
+}
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+}
+
+const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
+  const [form, setForm] = useState<FormState>({ email: '', password: '' });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const validate = (): boolean => {
+    const newErrors: FormErrors = {};
+    if (!form.email || !/^\S+@\S+\.\S+$/.test(form.email)) {
+      newErrors.email = 'Valid email is required';
+    }
+    if (!form.password || form.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    setIsLoading(true);
+    try {
+      const response = await authService.login(form.email, form.password);
+      if (response.success && response.data) {
+        setAuth(response.data.user, response.data.token);
+        toast.success('Welcome back!');
+        navigate('/dashboard');
+      } else {
+        toast.error(response.message || 'Login failed');
+      }
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Invalid credentials';
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
+            <BarChart2 className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">SmartLeads</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Sign in to your account</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Input
+              label="Email Address"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              error={errors.email}
+              placeholder="you@example.com"
+              leftIcon={<Mail className="w-4 h-4" />}
+              disabled={isLoading}
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              error={errors.password}
+              placeholder="••••••••"
+              leftIcon={<Lock className="w-4 h-4" />}
+              disabled={isLoading}
+            />
+            <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
+              Sign In
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-blue-600 hover:underline font-medium">
+              Create one
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;
